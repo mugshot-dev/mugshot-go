@@ -3,6 +3,7 @@ package mugshot_go
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/go-resty/resty/v2"
 	"io"
 	"net/http"
@@ -48,6 +49,7 @@ func (c *MugshotClient) AddFace(imageFile io.Reader, metadata map[string]interfa
 	}
 
 	if resp.StatusCode() != http.StatusOK {
+		fmt.Println(string(resp.Body()))
 		return nil, errors.New("HTTP error! Status: " + resp.Status())
 	}
 
@@ -77,6 +79,54 @@ func (c *MugshotClient) SearchFace(imageFile io.Reader) (*SearchFaceResponse, er
 	}
 
 	var data SearchFaceResponse
+	if err := json.Unmarshal(resp.Body(), &data); err != nil {
+		return nil, err
+	}
+
+	return &data, nil
+}
+
+func (c *MugshotClient) MatchFace(imageFile io.Reader) (*MatchFaceResponse, error) {
+	url := c.Option.Endpoint + "/face/find/match"
+	resp, err := resty.New().R().
+		SetFileReader("image", "image.jpg", imageFile).
+		SetHeader("Authorization", c.ApiKey).
+		SetHeader("User-Agent", "Mugshot-SDK/1.0.0").
+		Post(url)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		return nil, errors.New("HTTP error! Status: " + resp.Status())
+	}
+
+	var data MatchFaceResponse
+	if err := json.Unmarshal(resp.Body(), &data); err != nil {
+		return nil, err
+	}
+
+	return &data, nil
+}
+
+func (c *MugshotClient) DeleteFace(faceId string) (*DeleteFaceResponse, error) {
+	url := c.Option.Endpoint + "/face/delete"
+	resp, err := resty.New().R().
+		SetFormData(map[string]string{"face_id": faceId}).
+		SetHeader("Authorization", c.ApiKey).
+		SetHeader("User-Agent", "Mugshot-SDK/1.0.0").
+		Post(url)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		return nil, errors.New("HTTP error! Status: " + resp.Status())
+	}
+
+	var data DeleteFaceResponse
 	if err := json.Unmarshal(resp.Body(), &data); err != nil {
 		return nil, err
 	}
