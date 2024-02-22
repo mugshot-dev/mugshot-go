@@ -3,10 +3,8 @@ package mugshot_go
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/go-resty/resty/v2"
 	"io"
-	"net/http"
 )
 
 type Option struct {
@@ -48,8 +46,7 @@ func (c *MugshotClient) AddFace(imageFile io.Reader, metadata map[string]interfa
 		return nil, err
 	}
 
-	if resp.StatusCode() != http.StatusOK {
-		fmt.Println(string(resp.Body()))
+	if !resp.IsSuccess() {
 		return nil, errors.New("HTTP error! Status: " + resp.Status())
 	}
 
@@ -74,7 +71,7 @@ func (c *MugshotClient) SearchFace(imageFile io.Reader) (*SearchFaceResponse, er
 		return nil, err
 	}
 
-	if resp.StatusCode() != http.StatusOK {
+	if !resp.IsSuccess() {
 		return nil, errors.New("HTTP error! Status: " + resp.Status())
 	}
 
@@ -99,7 +96,7 @@ func (c *MugshotClient) SearchFaceFirst(imageFile io.Reader) (*SearchFaceRespons
 		return nil, err
 	}
 
-	if resp.StatusCode() != http.StatusOK {
+	if !resp.IsSuccess() {
 		return nil, errors.New("HTTP error! Status: " + resp.Status())
 	}
 
@@ -123,7 +120,7 @@ func (c *MugshotClient) MatchFace(imageFile io.Reader) (*MatchFaceResponse, erro
 		return nil, err
 	}
 
-	if resp.StatusCode() != http.StatusOK {
+	if !resp.IsSuccess() {
 		return nil, errors.New("HTTP error! Status: " + resp.Status())
 	}
 
@@ -147,7 +144,7 @@ func (c *MugshotClient) DeleteFace(faceId string) (*DeleteFaceResponse, error) {
 		return nil, err
 	}
 
-	if resp.StatusCode() != http.StatusOK {
+	if !resp.IsSuccess() {
 		return nil, errors.New("HTTP error! Status: " + resp.Status())
 	}
 
