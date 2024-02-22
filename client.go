@@ -1,26 +1,29 @@
 package mugshot_go
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
+	"github.com/go-resty/resty/v2"
 	"io"
-	"mime/multipart"
 	"net/http"
 )
 
 type Option struct {
 	Endpoint string
 }
+
 type MugshotClient struct {
 	ApiKey string
 	Option Option
 }
 
 func ClientDefault(apikey string) *MugshotClient {
-	return &MugshotClient{apikey, Option{
-		Endpoint: "https://v1.mugshot.dev",
-	}}
+	return &MugshotClient{
+		ApiKey: apikey,
+		Option: Option{
+			Endpoint: "https://v1.mugshot.dev",
+		},
+	}
 }
 
 func Client(apikey string, option Option) *MugshotClient {
@@ -32,51 +35,56 @@ func Client(apikey string, option Option) *MugshotClient {
 
 func (c *MugshotClient) AddFace(imageFile io.Reader, metadata map[string]interface{}) (*AddFaceResponse, error) {
 	url := c.Option.Endpoint + "/face/add"
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
 
-	imagePart, err := writer.CreateFormFile("image", "image.jpg")
+	resp, err := resty.New().R().
+		SetFileReader("image", "image.jpg", imageFile).
+		SetFormData(map[string]string{"metadata": c.mapToJSON(metadata)}).
+		SetHeader("Authorization", c.ApiKey).
+		SetHeader("User-Agent", "Mugshot-SDK/1.0.0").
+		Post(url)
+
 	if err != nil {
 		return nil, err
 	}
-	if _, err := io.Copy(imagePart, imageFile); err != nil {
-		return nil, err
-	}
 
-	metadataPart, err := writer.CreateFormField("metadata")
-	if err != nil {
-		return nil, err
-	}
-	metadataJSON, err := json.Marshal(metadata)
-	if err != nil {
-		return nil, err
-	}
-	metadataPart.Write(metadataJSON)
-
-	writer.Close()
-
-	request, err := http.NewRequest("POST", url, body)
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Set("Authorization", c.ApiKey)
-	request.Header.Set("User-Agent", "Mugshot-SDK/1.0.0")
-	request.Header.Set("Content-Type", writer.FormDataContentType())
-
-	response, err := http.DefaultClient.Do(request)
-	if err != nil {
-		return nil, err
-	}
-	defer response.Body.Close()
-
-	if response.StatusCode != http.StatusOK {
-		return nil, errors.New("HTTP error! Status: " + response.Status)
+	if resp.StatusCode() != http.StatusOK {
+		return nil, errors.New("HTTP error! Status: " + resp.Status())
 	}
 
 	var data AddFaceResponse
-	if err := json.NewDecoder(response.Body).Decode(&data); err != nil {
+	if err := json.Unmarshal(resp.Body(), &data); err != nil {
 		return nil, err
 	}
 
 	return &data, nil
+}
+
+func (c *MugshotClient) SearchFace(imageFile io.Reader) (*SearchFaceResponse, error) {
+	url := c.Option.Endpoint + "/face/find"
+
+	resp, err := resty.New().R().
+		SetFileReader("image", "image.jpg", imageFile).
+		SetHeader("Authorization", c.ApiKey).
+		SetHeader("User-Agent", "Mugshot-SDK/1.0.0").
+		Post(url)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		return nil, errors.New("HTTP error! Status: " + resp.Status())
+	}
+
+	var data SearchFaceResponse
+	if err := json.Unmarshal(resp.Body(), &data); err != nil {
+		return nil, err
+	}
+
+	return &data, nil
+}
+
+func (c *MugshotClient) mapToJSON(data map[string]interface{}) string {
+	jsonData, _ := json.Marshal(data)
+	return string(jsonData)
 }
