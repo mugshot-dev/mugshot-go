@@ -86,6 +86,31 @@ func (c *MugshotClient) SearchFace(imageFile io.Reader) (*SearchFaceResponse, er
 	return &data, nil
 }
 
+func (c *MugshotClient) SearchFaceFirst(imageFile io.Reader) (*SearchFaceResponse, error) {
+	url := c.Option.Endpoint + "/face/find"
+
+	resp, err := resty.New().R().
+		SetFileReader("image", "image.jpg", imageFile).
+		SetHeader("Authorization", c.ApiKey).
+		SetHeader("User-Agent", "Mugshot-SDK/1.0.0").
+		Post(url)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		return nil, errors.New("HTTP error! Status: " + resp.Status())
+	}
+
+	var data SearchFaceResponse
+	if err := json.Unmarshal(resp.Body(), &data); err != nil {
+		return nil, err
+	}
+
+	return &data, nil
+}
+
 func (c *MugshotClient) MatchFace(imageFile io.Reader) (*MatchFaceResponse, error) {
 	url := c.Option.Endpoint + "/face/find/match"
 	resp, err := resty.New().R().
